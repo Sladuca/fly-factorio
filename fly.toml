@@ -1,0 +1,60 @@
+# fly.toml app configuration file generated for factorio-server on 2024-11-16T11:35:58-08:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'factorio-server'
+primary_region = 'sjc'
+
+[deploy]
+strategy = "immediate"
+
+[[services]]
+  internal_port = 34197
+  protocol = "udp"
+  auto_stop_machines = false
+  auto_start_machines = false
+  min_machines_running = 1
+
+  [[services.ports]]
+    port = "34197"
+
+[[services]]
+  internal_port = 27015
+  protocol = "tcp"
+  auto_stop_machines = false
+  auto_start_machines = false
+  min_machines_running = 1
+
+  [[services.ports]]
+    port = "27015"
+
+# tweak this as necessary - it's possible that this is overkill or just not enough
+[[vm]]
+  memory = '8gb'
+  cpu_kind = 'shared'
+  cpus = 4
+
+[mounts]
+  source = "factorio"
+  destination = "/factorio"
+  initial_size = "30gb"
+
+[env]
+  # tell the factorio UDP server to bind to the magic `fly-global-services` address instead of `0.0.0.0`
+  # see https://fly.io/docs/networking/udp-and-tcp/#why-the-fly-global-services-address for more information
+  BIND = "fly-global-services"
+  # enable all of the mods in space age DLC
+  # if you don't have space age or you don't want the server to have it,
+  # set this to "false"
+  DLC_SPACE_AGE = "true"
+  # if set, the server will auto-update the game every time it starts
+  # disable if you don't want this behavior
+  UPDATE_MODS_ONSTART = "true"
+  # SAVE_NAME="YOUR_SAVE_NAME"
+
+  # in addition, you must set the `USERNAME` and `TOKEN` variables as fly secrets.
+  # You can do this with `fly secrets set TOKEN=your_token_here` (similarly for `USERNAME`)
+  # You can find your token by signing into `factorio.com` and
+  # going to your profile by clicking on your username in the top right.
+  # Fly will inject secrets into the machine as an environment variable
