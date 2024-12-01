@@ -1,7 +1,4 @@
-# fly.toml app configuration file generated for factorio-server on 2024-11-16T11:35:58-08:00
-#
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
-#
 
 app = 'factorio-server'
 primary_region = 'sjc'
@@ -29,7 +26,8 @@ strategy = "immediate"
   [[services.ports]]
     port = "27015"
 
-# tweak this as necessary - it's possible that this is overkill or just not enough
+# this may be overkill, or it might be not enough.
+# not sure if sever load scales with factory size or not
 [[vm]]
   memory = '8gb'
   cpu_kind = 'shared'
