@@ -1,27 +1,126 @@
 ## Fly Factorio
 
-Configuration for hosting a factorio server on https://fly.io.
+A small template for creating Factorio dedicated servers on [Fly.io](https://fly.io).
+
+Each server uses:
+
+- `factoriotools/factorio:stable`
+- UDP `34197` for Factorio
+- TCP `27015` for RCON
+- one Fly Volume mounted at `/factorio`
+- a dedicated IPv4 address, required for UDP on Fly.io
 
 ### Prerequisites
 
-- paid fly account
+- A paid Fly.io account
+- [`flyctl`](https://fly.io/docs/flyctl/install/) installed and authenticated with `fly auth login`
+- A Factorio account token from <https://factorio.com/profile> if you want mod updates or a public game listing
 
-### Setup
+### Create a new server
 
-First, look at `fly.toml` and edit the following to your liking:
-1. `primary_region` should be set to the region closest to where you expect people to be playing from.
-2. set `DLC_SPACE_AGE` to `true` if you have / want the server to use space age
-3. set `UPDATE_MODS_ONSTART` to `true` if you want the game to auto-update whenever the game updates.
-4. set `SAVE_NAME` to the name of the save file you'd like to use. It defaults to `autosave1`. Typically you'd use this to host a your own save file instead of starting from scratch.
+Run the template script with a unique Fly app name and region:
 
-First, create the app with `fly deploy --ha=false`. This will create a new ply app called `factorio-server`.
+```sh
+scripts/new-server.sh --app my-factorio-server --region sjc
+```
 
-In order for it to work, you'll also need to:
-1. Create a volume. `fly deploy` should tell you how to do it.
-2. Allocate a dedicated IPv4 address for the server. you can do this with `fly ips allocate-v4`
+The script will:
 
-Then, you need to set the following secrets in the app:
-1. `USERNAME` - your https://factorio.com username
-2. `TOKEN` - game token from https://factorio.com. You can find this on the profile page of your factorio account, which you can find by clicking on your username in the upper-right-hand corner.
+1. generate `generated/my-factorio-server.fly.toml` from `fly.template.toml`
+2. create the Fly app if needed
+3. create the persistent Fly Volume if needed
+4. allocate a dedicated IPv4 address for UDP
+5. optionally set Factorio `USERNAME` and `TOKEN` secrets
+6. deploy the server
 
-Then, just `fly deploy --ha=false` once more and inshallah the server should work. To connect in-game, use the "connect to address" multiplayer option.
+Dedicated IPv4 addresses are a paid Fly.io resource. By default `flyctl` can prompt you before allocation. Add `--yes` to auto-confirm Fly prompts:
+
+```sh
+scripts/new-server.sh --app my-factorio-server --region sjc --yes
+```
+
+With Factorio credentials:
+
+```sh
+scripts/new-server.sh \
+  --app my-factorio-server \
+  --region sjc \
+  --username your_factorio_username \
+  --token your_factorio_token
+```
+
+Generate resources but skip deploy:
+
+```sh
+scripts/new-server.sh --app my-factorio-server --region sjc --no-deploy
+```
+
+See all options:
+
+```sh
+scripts/new-server.sh --help
+```
+
+### Common options
+
+```sh
+scripts/new-server.sh \
+  --app my-factorio-server \
+  --region sjc \
+  --volume-size 50 \
+  --memory 4gb \
+  --cpus 2 \
+  --space-age false \
+  --update-mods false
+```
+
+To load a specific existing save from `/factorio/saves/<name>.zip`:
+
+```sh
+scripts/new-server.sh \
+  --app my-factorio-server \
+  --region sjc \
+  --save-name my-save
+```
+
+### Deploy an existing generated config
+
+Generated configs are ignored by git. Re-deploy one with:
+
+```sh
+fly deploy --app my-factorio-server --config generated/my-factorio-server.fly.toml
+```
+
+### Connect
+
+After deployment, connect in Factorio with **Multiplayer → Connect to address**:
+
+```text
+my-factorio-server.fly.dev:34197
+```
+
+### Operations
+
+Useful commands:
+
+```sh
+fly logs --app my-factorio-server
+fly status --app my-factorio-server
+fly ssh console --app my-factorio-server
+fly machine restart --app my-factorio-server
+```
+
+Server data lives on the mounted Fly Volume:
+
+```text
+/factorio/saves
+/factorio/mods
+/factorio/config
+```
+
+### Notes
+
+- Fly UDP services must bind to `fly-global-services`; the template sets `BIND=fly-global-services`.
+- The public UDP port and container UDP port must match; the template uses `34197` for both.
+- `UPDATE_MODS_ON_START` is the current `factoriotools/factorio` environment variable name.
+- Volume snapshot retention and auto-extension are configured in `fly.template.toml`; adjust the defaults there or in the generated config to control storage costs.

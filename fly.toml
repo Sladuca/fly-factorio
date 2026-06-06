@@ -1,58 +1,77 @@
-# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+# See https://fly.io/docs/reference/configuration/ for full fly.toml documentation.
 
-app = 'factorio-server'
-primary_region = 'sjc'
+app = "factorio-server"
+primary_region = "sjc"
+kill_signal = "SIGTERM"
+kill_timeout = 30
+
+[build]
+  image = "factoriotools/factorio:stable"
 
 [deploy]
-strategy = "immediate"
+  # Factorio uses one persistent volume, so rolling/immediate deploys are the
+  # useful strategies. Keep immediate to minimize the time with no server up.
+  strategy = "immediate"
+  wait_timeout = "10m"
 
 [[services]]
   internal_port = 34197
   protocol = "udp"
-  auto_stop_machines = false
+  auto_stop_machines = "off"
   auto_start_machines = false
   min_machines_running = 1
 
   [[services.ports]]
-    port = "34197"
+    port = 34197
 
+# RCON. Remove this service if you don't want RCON reachable from the internet.
 [[services]]
   internal_port = 27015
   protocol = "tcp"
-  auto_stop_machines = false
+  auto_stop_machines = "off"
   auto_start_machines = false
   min_machines_running = 1
 
   [[services.ports]]
-    port = "27015"
+    port = 27015
 
-# this may be overkill, or it might be not enough.
-# not sure if sever load scales with factory size or not
+  [[services.tcp_checks]]
+    grace_period = "60s"
+    interval = "30s"
+    timeout = "5s"
+
+# Factorio server load depends heavily on factory size, player count, and mods.
+# Adjust down after observing CPU/memory in `fly metrics` if this is oversized.
 [[vm]]
-  memory = '8gb'
-  cpu_kind = 'shared'
+  memory = "8gb"
+  cpu_kind = "shared"
   cpus = 4
 
 [mounts]
   source = "factorio"
   destination = "/factorio"
   initial_size = "30gb"
+  snapshot_retention = 14
+  auto_extend_size_threshold = 80
+  auto_extend_size_increment = "5gb"
+  auto_extend_size_limit = "100gb"
 
 [env]
-  # tell the factorio UDP server to bind to the magic `fly-global-services` address instead of `0.0.0.0`
-  # see https://fly.io/docs/networking/udp-and-tcp/#why-the-fly-global-services-address for more information
+  # Fly UDP services must bind to this special address and to the same internal
+  # port as the public port. TCP/RCON should keep its default 0.0.0.0 binding.
   BIND = "fly-global-services"
-  # enable all of the mods in space age DLC
-  # if you don't have space age or you don't want the server to have it,
-  # set this to "false"
-  DLC_SPACE_AGE = "true"
-  # if set, the server will auto-update the game every time it starts
-  # disable if you don't want this behavior
-  UPDATE_MODS_ONSTART = "true"
-  # SAVE_NAME="YOUR_SAVE_NAME"
 
-  # in addition, you must set the `USERNAME` and `TOKEN` variables as fly secrets.
-  # You can do this with `fly secrets set TOKEN=your_token_here` (similarly for `USERNAME`)
-  # You can find your token by signing into `factorio.com` and
-  # going to your profile by clicking on your username in the top right.
-  # Fly will inject secrets into the machine as an environment variable
+  # Enable Factorio 2.x Space Age built-in mods. Use "false" if you don't own
+  # Space Age or don't want the server to enable it.
+  DLC_SPACE_AGE = "true"
+
+  # Update mods during container startup. Requires USERNAME and TOKEN secrets.
+  UPDATE_MODS_ON_START = "true"
+
+  # Uncomment to load a specific save from /factorio/saves/<name>.zip instead of
+  # the most recent save. If set, also set LOAD_LATEST_SAVE = "false".
+  # LOAD_LATEST_SAVE = "false"
+  # SAVE_NAME = "YOUR_SAVE_NAME"
+
+  # Set USERNAME and TOKEN as Fly secrets:
+  #   fly secrets set USERNAME=your_factorio_username TOKEN=your_factorio_token

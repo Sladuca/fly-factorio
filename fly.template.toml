@@ -1,0 +1,64 @@
+# Template consumed by scripts/new-server.sh.
+# Generated fly.toml files should be deployed with: fly deploy -c <generated-file>
+
+app = "${APP_NAME}"
+primary_region = "${REGION}"
+kill_signal = "SIGTERM"
+kill_timeout = 30
+
+[build]
+  image = "factoriotools/factorio:${FACTORIO_TAG}"
+
+[deploy]
+  strategy = "immediate"
+  wait_timeout = "10m"
+
+[[services]]
+  internal_port = 34197
+  protocol = "udp"
+  auto_stop_machines = "off"
+  auto_start_machines = false
+  min_machines_running = 1
+
+  [[services.ports]]
+    port = 34197
+
+# RCON. Remove this service if you don't want RCON reachable from the internet.
+[[services]]
+  internal_port = 27015
+  protocol = "tcp"
+  auto_stop_machines = "off"
+  auto_start_machines = false
+  min_machines_running = 1
+
+  [[services.ports]]
+    port = 27015
+
+  [[services.tcp_checks]]
+    grace_period = "60s"
+    interval = "30s"
+    timeout = "5s"
+
+[[vm]]
+  memory = "${VM_MEMORY}"
+  cpu_kind = "${CPU_KIND}"
+  cpus = ${CPUS}
+
+[mounts]
+  source = "${VOLUME_NAME}"
+  destination = "/factorio"
+  initial_size = "${VOLUME_SIZE}gb"
+  snapshot_retention = ${SNAPSHOT_RETENTION}
+  auto_extend_size_threshold = ${AUTO_EXTEND_THRESHOLD}
+  auto_extend_size_increment = "${AUTO_EXTEND_INCREMENT}gb"
+  auto_extend_size_limit = "${AUTO_EXTEND_LIMIT}gb"
+
+[env]
+  # Fly UDP services must bind to this special address and to the same internal
+  # port as the public port. TCP/RCON should keep its default 0.0.0.0 binding.
+  BIND = "fly-global-services"
+
+  DLC_SPACE_AGE = "${DLC_SPACE_AGE}"
+  UPDATE_MODS_ON_START = "${UPDATE_MODS_ON_START}"
+  LOAD_LATEST_SAVE = "${LOAD_LATEST_SAVE}"
+${SAVE_NAME_LINE}
